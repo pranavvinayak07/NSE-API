@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Full option chain backup per cron tick (JSON blob – kept for backward compat)
+model OptionChainBackup {
+  id              String   @id @default(cuid())
+  timestamp       DateTime
+  createdAt       DateTime @default(now())
+  underlyingValue Float?
+  atmStrike       Int?
+  expiry          String
+  availableExpiries Json?
+  data            Json
+
+  @@index([timestamp])
+}
+
+// Per-strike granular snapshot for historical analytics
+// Enables: CE/PE High/Low charts, LTP trends, OI build-up, ATM movement,
+//          PCR trend, support/resistance, Smart Money Flow, AI analysis
+model OptionSnapshot {
+  id        String   @id @default(cuid())
+  timestamp DateTime
+  createdAt DateTime @default(now())
+  expiry    String
+  strike    Int
+
+  ceHigh Float?
+  ceLow  Float?
+  ceLTP  Float?
+  ceSynthetic Float? // (ceLow + peHigh) / 2
+
+  peHigh Float?
+  peLow  Float?
+  peLTP  Float?
+  peSynthetic Float? // (ceHigh + peLow) / 2
+
+  difference Float?
+  average    Float?
+
+  spot      Float?
+  atmStrike Int?
+
+  // Prevents duplicate rows if cron fires twice in the same minute
+  @@unique([timestamp, strike, expiry])
+
+  // Fast time-series queries
+  @@index([timestamp])
+  @@index([strike, timestamp])
+  @@index([atmStrike])
+  // Composite: speeds up expiry-filtered chart queries (WHERE expiry=X ORDER BY timestamp)
+  @@index([expiry, timestamp])
+}

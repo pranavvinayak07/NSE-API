@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "app/api/download/route": {
+      "maxDuration": 60
+    },
+    "app/api/preview/route": {
+      "maxDuration": 60
+    }
+  },
+  "buildCommand": "prisma generate && next build"
+}
