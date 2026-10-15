@@ -71,17 +71,15 @@ export default function ComparePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch available expiries (live NSE, current + future) on mount
+  // Fetch the live ATM only. Expiries for this historical chart come from the
+  // database response below; waiting for NSE here used to leave the whole page
+  // disabled when the live NSE request was slow or unavailable.
   useEffect(() => {
     fetch(`/api/expiries`)
       .then(res => res.json())
       .then((json: { expiries?: string[], atmStrike?: number }) => {
-        if (Array.isArray(json.expiries) && json.expiries.length > 0) {
-          setAvailableExpiries(json.expiries);
-          setExpiry(json.expiries[0]);
-          if (json.atmStrike) {
-            setAtmStrike(json.atmStrike);
-          }
+        if (json.atmStrike) {
+          setAtmStrike(json.atmStrike);
         }
       })
       .catch(err => console.warn('[compare] Failed to fetch expiries:', err));
@@ -101,6 +99,10 @@ export default function ComparePage() {
         throw new Error(json.error);
       }
       setData(json);
+
+      if (Array.isArray(json.dbExpiries)) {
+        setAvailableExpiries(json.dbExpiries);
+      }
 
       // Sync expiry selector if API auto-corrected to nearest DB expiry
       if (json.currentExpiry && json.currentExpiry !== selectedExpiry) {
@@ -127,9 +129,9 @@ export default function ComparePage() {
     }
   }, [atmStrike]);
 
-  // Re-fetch whenever any selector changes
+  // Re-fetch whenever any selector changes. An empty expiry deliberately asks
+  // the API to select the latest expiry present in the database.
   useEffect(() => {
-    if (!expiry) return;
     fetchData(strike, timeframe, interval, expiry);
   }, [strike, timeframe, interval, expiry, fetchData]);
 
